@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Replace with your first labeled case",
+    "image": "evals/images/example.png",
+    "question": "What is the primary subject?",
+    "expected_terms": ["replace-me"],
+    "detail": "auto"
+  }
+]
+

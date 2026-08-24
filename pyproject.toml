@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vlm-agent-starter"
+version = "0.1.0"
+description = "A small agentic vision-language application using the OpenAI Responses API."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.0",
+    "gradio>=5.0,<7",
+    "opencv-python-headless>=4.10,<5",
+    "openai>=1.60",
+    "pillow>=11.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+vlm-agent = "vlm_agent.app:main"
+vlm-eval = "vlm_agent.evaluate:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
