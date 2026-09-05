@@ -1,4 +1,4 @@
-"""Starter agentic VLM application."""
+"""Public package entry points for the starter agentic VLM application."""
 
 from .agent import VLMAgent, VLMResult
 

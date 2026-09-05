@@ -44,6 +44,7 @@ MIME_TYPE_OVERRIDES = {
 
 
 def _state_name(file: Any) -> str | None:
+    """Normalize the SDK's upload state representation for polling and comparisons."""
     state = getattr(file, "state", None)
     if state is None:
         return None
@@ -51,6 +52,7 @@ def _state_name(file: Any) -> str | None:
 
 
 def _usage(response: Any) -> dict[str, int | None]:
+    """Map token fields from different Gemini SDK response shapes to one schema."""
     usage = getattr(response, "usage", None) or getattr(response, "usage_metadata", None)
     input_tokens = getattr(usage, "input_tokens", None)
     if input_tokens is None:
@@ -69,6 +71,8 @@ def _usage(response: Any) -> dict[str, int | None]:
 
 
 class _GeminiBaseAgent:
+    """Shared upload, processing, cleanup, and response handling for Gemini agents."""
+
     def __init__(
         self,
         model: str | None = None,
@@ -76,6 +80,7 @@ class _GeminiBaseAgent:
         processing_timeout_seconds: float | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        """Configure lazy client access and a finite wait for uploaded media processing."""
         self.model = model or os.getenv(
             "VLM_GEMINI_MODEL", "gemini-3.1-pro-preview"
         )
@@ -92,6 +97,7 @@ class _GeminiBaseAgent:
 
     @property
     def client(self) -> Any:
+        """Create the Gemini client only when an analysis actually needs it."""
         if self._client is None:
             api_key = os.getenv("GEMINI_API_KEY")
             if not api_key:
@@ -102,6 +108,7 @@ class _GeminiBaseAgent:
         return self._client
 
     def _upload_and_wait(self, path: Path) -> Any:
+        """Upload media and poll until Gemini can analyze it or the deadline is reached."""
         mime_type = MIME_TYPE_OVERRIDES.get(path.suffix.lower())
         if mime_type is None:
             mime_type = mimetypes.guess_type(path.name)[0]
@@ -118,6 +125,7 @@ class _GeminiBaseAgent:
         return uploaded
 
     def _delete_upload(self, uploaded: Any) -> None:
+        """Best-effort cleanup of the temporary Gemini Files API resource."""
         name = getattr(uploaded, "name", None)
         if not name:
             return
@@ -136,10 +144,12 @@ class _GeminiBaseAgent:
         detail: str,
         trace: list[dict[str, Any]],
     ) -> VLMResult:
+        """Send validated media and prompt to Gemini, then normalize its response."""
         if detail not in {"low", "high", "auto"}:
             raise ValueError("Visual detail must be low, high, or auto.")
 
         started = time.perf_counter()
+        # Gemini receives a URI for the uploaded resource rather than the local file bytes.
         uploaded = self._upload_and_wait(path)
         media_input: dict[str, Any] = {
             "type": media_type,
@@ -176,11 +186,13 @@ class GeminiImageAgent(_GeminiBaseAgent):
     """Analyze an uploaded image using a Gemini multimodal model."""
 
     def __init__(self, max_image_mb: float | None = None, **kwargs: Any) -> None:
+        """Apply the global image ceiling while allowing a stricter caller limit."""
         super().__init__(**kwargs)
         configured = max_image_mb if max_image_mb is not None else LIMITS.image_mb
         self.max_image_mb = min(configured, LIMITS.image_mb)
 
     def run(self, image_path: str | Path, question: str, detail: str = "auto") -> VLMResult:
+        """Validate an image, add trusted local metadata, and analyze it with Gemini."""
         question = question.strip()
         if not question:
             raise ValueError("Please enter a question about the image.")
@@ -210,6 +222,7 @@ class GeminiVideoAgent(_GeminiBaseAgent):
         max_duration_seconds: float | None = None,
         **kwargs: Any,
     ) -> None:
+        """Apply global video ceilings before any upload is attempted."""
         super().__init__(**kwargs)
         configured_size = max_video_mb if max_video_mb is not None else LIMITS.video_mb
         configured_duration = (
@@ -221,6 +234,7 @@ class GeminiVideoAgent(_GeminiBaseAgent):
         self.max_duration_seconds = min(configured_duration, LIMITS.video_seconds)
 
     def run(self, video_path: str | Path, question: str, detail: str = "auto") -> VLMResult:
+        """Validate a video, preserve its metadata, and analyze it natively with Gemini."""
         question = question.strip()
         if not question:
             raise ValueError("Please enter a question about the video.")

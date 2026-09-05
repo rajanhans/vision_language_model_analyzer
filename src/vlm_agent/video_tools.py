@@ -17,6 +17,8 @@ SUPPORTED_VIDEO_EXTENSIONS = {".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm"}
 
 @dataclass(frozen=True)
 class VideoMetadata:
+    """Technical properties collected from a video container and stream."""
+
     filename: str
     format: str
     width: int
@@ -27,11 +29,14 @@ class VideoMetadata:
     file_size_bytes: int
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert metadata to the JSON-compatible form used in traces and prompts."""
         return asdict(self)
 
 
 @dataclass(frozen=True)
 class SampledFrame:
+    """One chronological frame prepared for transmission to a vision model."""
+
     timestamp_seconds: float
     frame_number: int
     width: int
@@ -41,7 +46,7 @@ class SampledFrame:
 
 
 def get_video_metadata(video_path: str | Path) -> VideoMetadata:
-    """Read technical metadata using OpenCV without decoding the full video."""
+    """Read container metadata using OpenCV without decoding every video frame."""
     path = Path(video_path).resolve()
     capture = cv2.VideoCapture(str(path))
     try:
@@ -74,7 +79,7 @@ def validate_video(
     max_width: int | None = None,
     max_height: int | None = None,
 ) -> tuple[Path, VideoMetadata]:
-    """Validate the file, allow-listed extension, size, duration, and decodability."""
+    """Validate file type, size, resolution, duration, and basic stream decodability."""
     path = Path(video_path).resolve()
     if not path.is_file():
         raise ValueError("Please upload a video file.")
@@ -121,7 +126,7 @@ def validate_video(
 
 
 def frame_to_data_url(frame: Any, jpeg_quality: int = 85) -> str:
-    """Encode one OpenCV frame as a JPEG data URL."""
+    """Encode one OpenCV BGR frame as a bounded-quality JPEG data URL."""
     success, encoded = cv2.imencode(
         ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, max(40, min(jpeg_quality, 95))]
     )
@@ -136,7 +141,7 @@ def resize_frame(
     max_width: int | None = None,
     max_height: int | None = None,
 ) -> Any:
-    """Downsize a frame to an orientation-aware bounding box without upscaling it."""
+    """Downsize a frame to an orientation-aware box while preserving its aspect ratio."""
     source_height, source_width = frame.shape[:2]
     target_width = max_width or LIMITS.video_frame_width
     target_height = max_height or LIMITS.video_frame_height
@@ -159,10 +164,11 @@ def sample_video_frames(
     frame_count: int = 12,
     jpeg_quality: int = 85,
 ) -> list[SampledFrame]:
-    """Uniformly sample ordered frames across a video."""
+    """Uniformly sample, resize, timestamp, and encode readable frames across a video."""
     metadata = get_video_metadata(video_path)
     requested = max(1, min(int(frame_count), LIMITS.video_sampled_frames))
     sample_total = min(requested, metadata.frame_count)
+    # Include the first and last frames so the model can compare the full available timeline.
     if sample_total == 1:
         indices = [0]
     else:
@@ -220,7 +226,7 @@ VIDEO_TOOLS = [
 
 
 def call_video_tool(name: str, arguments_json: str, video_path: str | Path) -> str:
-    """Dispatch an allow-listed read-only video tool."""
+    """Validate arguments, dispatch the allow-listed metadata tool, and serialize its result."""
     json.loads(arguments_json or "{}")
     if name != "get_video_metadata":
         raise ValueError(f"Unknown video tool: {name}")

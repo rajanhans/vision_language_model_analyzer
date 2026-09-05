@@ -25,6 +25,7 @@ GEMINI_MODELS = [
 
 
 def default_model(provider: str) -> str:
+    """Resolve the provider's environment override or its default model ID."""
     if provider == GPT_PROVIDER:
         return os.getenv("VLM_OPENAI_MODEL", os.getenv("VLM_MODEL", "gpt-5.6"))
     if provider == GEMINI_PROVIDER:
@@ -71,6 +72,8 @@ def analyze(
     detail: str,
     model: str,
 ):
+    """Validate the selected upload, execute analysis, and format UI outputs."""
+    # Only the uploader for the selected media type is allowed to drive the request.
     media_path = image_path if media_type == "Image" else video_path
     if not media_path:
         return f"Please upload a {media_type.lower()}.", "[]", ""
@@ -92,6 +95,7 @@ def analyze(
 
 
 def build_app() -> gr.Blocks:
+    """Construct the Gradio layout and connect controls to the analysis callback."""
     with gr.Blocks(title="Agentic VLM Starter") as demo:
         gr.Markdown(
             "# Agentic VLM Starter\n"
@@ -177,6 +181,7 @@ def build_app() -> gr.Blocks:
 
 
 def main() -> None:
+    """Launch the queued Gradio application with the configured resource limits."""
     build_app().queue(default_concurrency_limit=LIMITS.max_concurrent_analyses).launch(
         max_file_size=f"{LIMITS.upload_mb:g}mb",
         max_threads=LIMITS.max_concurrent_analyses,

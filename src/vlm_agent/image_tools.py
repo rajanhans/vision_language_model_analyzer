@@ -20,7 +20,7 @@ def validate_image(
     max_megapixels: float | None = None,
     max_dimension: int | None = None,
 ) -> Path:
-    """Validate that a path is a readable image within the configured size limit."""
+    """Validate file existence, byte size, dimensions, and image readability."""
     path = Path(image_path).resolve()
     if not path.is_file():
         raise ValueError("Please upload an image file.")
@@ -42,6 +42,8 @@ def validate_image(
         raise ValueError(f"Image is {size_mb:.1f} MB; the limit is {max_image_mb:g} MB.")
 
     try:
+        # Opening checks the container and dimensions; verify() forces Pillow to inspect the
+        # encoded image without retaining the full pixel buffer after validation.
         with Image.open(path) as image:
             megapixels = image.width * image.height / 1_000_000
             if megapixels > max_megapixels:
@@ -71,7 +73,7 @@ def image_to_data_url(image_path: str | Path) -> str:
 
 
 def get_image_metadata(image_path: str | Path) -> dict[str, Any]:
-    """Return non-sensitive technical image metadata."""
+    """Return technical metadata while excluding EXIF fields likely to contain sensitive data."""
     path = Path(image_path)
     with Image.open(path) as image:
         exif: dict[str, str] = {}
@@ -94,7 +96,7 @@ def get_image_metadata(image_path: str | Path) -> dict[str, Any]:
 
 
 def get_dominant_colors(image_path: str | Path, count: int = 5) -> dict[str, Any]:
-    """Estimate dominant colors using a small quantized copy of the image."""
+    """Estimate dominant colors from a bounded RGB thumbnail using median-cut quantization."""
     count = max(1, min(int(count), 10))
     with Image.open(image_path) as source:
         image = source.convert("RGB")
@@ -155,7 +157,7 @@ TOOLS = [
 
 
 def call_image_tool(name: str, arguments_json: str, image_path: str | Path) -> str:
-    """Dispatch an allow-listed image tool and serialize its result."""
+    """Validate tool arguments, dispatch the allow-listed tool, and serialize its result."""
     arguments = json.loads(arguments_json or "{}")
     if name == "get_image_metadata":
         result = get_image_metadata(image_path)

@@ -9,6 +9,7 @@ from typing import Any
 
 
 def log_run(question: str, result: dict[str, Any], log_dir: str | Path = "logs") -> Path:
+    """Append one timestamped, metadata-only analysis record to the local JSONL log."""
     directory = Path(log_dir)
     directory.mkdir(parents=True, exist_ok=True)
     destination = directory / "runs.jsonl"

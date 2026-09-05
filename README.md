@@ -1,6 +1,6 @@
 # Agentic VLM Starter
 
-A deliberately small vision-language application. The UI lets the user choose GPT (OpenAI) or
+A deliberately small vision language model (VLM) application. The UI lets the user choose GPT (OpenAI) or
 Gemini (Google), choose a suggested model or enter a custom model ID, and analyze either an image
 or video.
 

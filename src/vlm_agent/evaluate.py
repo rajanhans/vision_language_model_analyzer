@@ -12,12 +12,15 @@ from .agent import VLMAgent
 
 
 def main() -> None:
+    """Run each manifest case and exit non-zero when any expected term is missing."""
     parser = argparse.ArgumentParser(description="Run a basic VLM evaluation manifest.")
     parser.add_argument("manifest", type=Path, help="JSON file containing an array of cases")
     parser.add_argument("--model", help="Override VLM_MODEL")
     args = parser.parse_args()
     load_dotenv()
 
+    # The manifest remains deliberately simple: each case names an image, question, and
+    # optional terms that must occur in the model's lower-cased answer.
     cases = json.loads(args.manifest.read_text(encoding="utf-8"))
     agent = VLMAgent(model=args.model)
     passed = 0

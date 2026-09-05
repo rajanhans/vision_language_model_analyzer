@@ -28,6 +28,8 @@ Keep the final answer concise but include the evidence that supports it.
 
 @dataclass
 class VLMResult:
+    """Normalized response returned by every image or video analysis agent."""
+
     answer: str
     model: str
     latency_seconds: float
@@ -35,10 +37,13 @@ class VLMResult:
     usage: dict[str, int | None] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert the result into JSON-friendly fields for logging and the UI."""
         return asdict(self)
 
 
 class VLMAgent:
+    """Run an OpenAI image analysis request with optional local tool calls."""
+
     def __init__(
         self,
         model: str | None = None,
@@ -46,6 +51,7 @@ class VLMAgent:
         max_image_mb: float | None = None,
         client: OpenAI | None = None,
     ) -> None:
+        """Store a bounded configuration and defer client creation until first use."""
         self.model = model or os.getenv("VLM_MODEL", "gpt-5.6")
         configured_tool_rounds = (
             max_tool_rounds if max_tool_rounds is not None else LIMITS.max_tool_rounds
@@ -57,11 +63,13 @@ class VLMAgent:
 
     @property
     def client(self) -> OpenAI:
+        """Create the OpenAI client lazily so importing the package stays side-effect free."""
         if self._client is None:
             self._client = OpenAI()
         return self._client
 
     def run(self, image_path: str | Path, question: str, detail: str = "auto") -> VLMResult:
+        """Validate an image, run the response/tool loop, and return the final answer."""
         question = question.strip()
         if not question:
             raise ValueError("Please enter a question about the image.")
@@ -69,6 +77,7 @@ class VLMAgent:
             raise ValueError("Image detail must be low, high, or auto.")
 
         path = validate_image(image_path, self.max_image_mb)
+        # The first request contains the user's question and the image as a data URL.
         input_items: list[Any] = [
             {
                 "role": "user",
@@ -86,6 +95,7 @@ class VLMAgent:
         started = time.perf_counter()
         response = None
 
+        # Preserve every model output and tool result so the next request has full context.
         for round_number in range(1, self.max_tool_rounds + 2):
             response = self.client.responses.create(
                 model=self.model,
@@ -101,6 +111,8 @@ class VLMAgent:
                 raise RuntimeError("The agent exceeded the configured tool-call limit.")
 
             for call in calls:
+                # Tool failures are returned to the model as data, allowing it to explain or
+                # recover from a local inspection failure instead of losing the whole request.
                 try:
                     output = call_image_tool(call.name, call.arguments, path)
                     trace.append(

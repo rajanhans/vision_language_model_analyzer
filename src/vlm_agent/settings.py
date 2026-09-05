@@ -12,6 +12,7 @@ load_dotenv()
 
 
 def _positive_float(name: str, default: float) -> float:
+    """Read a positive floating-point environment setting with a useful error message."""
     raw = os.getenv(name, str(default))
     try:
         value = float(raw)
@@ -23,6 +24,7 @@ def _positive_float(name: str, default: float) -> float:
 
 
 def _positive_int(name: str, default: int) -> int:
+    """Read a positive integer environment setting with a useful error message."""
     raw = os.getenv(name, str(default))
     try:
         value = int(raw)
@@ -35,6 +37,8 @@ def _positive_int(name: str, default: int) -> int:
 
 @dataclass(frozen=True)
 class MediaLimits:
+    """Validated limits shared by upload validation, sampling, UI, and concurrency controls."""
+
     image_mb: float
     image_megapixels: float
     image_max_dimension: int
@@ -52,10 +56,12 @@ class MediaLimits:
 
     @property
     def upload_mb(self) -> float:
+        """Return the largest upload limit needed by either supported media type."""
         return max(self.image_mb, self.video_mb)
 
     @classmethod
     def from_env(cls) -> "MediaLimits":
+        """Build limits from environment variables and verify frame/source compatibility."""
         limits = cls(
             image_mb=_positive_float("VLM_MAX_IMAGE_MB", 10),
             image_megapixels=_positive_float("VLM_MAX_IMAGE_MEGAPIXELS", 20),
