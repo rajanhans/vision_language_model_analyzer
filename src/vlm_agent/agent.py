@@ -26,6 +26,7 @@ Keep the final answer concise but include the evidence that supports it.
 """
 
 
+
 @dataclass
 class VLMResult:
     """Normalized response returned by every image or video analysis agent."""

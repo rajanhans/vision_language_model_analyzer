@@ -37,7 +37,7 @@ its final answer.
 ## Set up on Windows PowerShell
 
 ```powershell
-cd C:\MyWork\Tech-Work\VLM
+cd C:\MyWork\Tech-Work\vision_language_model_analyzer
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
